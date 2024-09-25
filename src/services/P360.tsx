@@ -46,7 +46,7 @@ export const filesToJsonOpenAI = async (files: any[]): Promise<string> => {
   try {
     console.log("Sending request to OpenAI API");
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: messages,
       max_tokens: 4096,
     });
