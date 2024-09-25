@@ -11,6 +11,7 @@ export const filesToJson = async (files: any[]) => {
   const googleApiKey = process.env.REACT_APP_GOOGLE_API_KEY
     ? process.env.REACT_APP_GOOGLE_API_KEY
     : "";
+  console.log("googleApiKey", googleApiKey);
   const genAI = new GoogleGenerativeAI(googleApiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
