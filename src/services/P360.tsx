@@ -27,6 +27,9 @@ export const filesToJson = async (files: any[]) => {
     ];
     input.push(image);
   }
+  
+  console.log("gemini input", input);
+
   const result = await model.generateContent(input);
   let documents = "";
   if (
