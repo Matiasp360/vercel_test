@@ -1,42 +1,13 @@
 import OpenAI from "openai";
 import { promptToConvertImagesToJson } from "../utils/utils";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocumentProxy } from 'pdfjs-dist';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const openai = new OpenAI({
   apiKey: process.env.REACT_APP_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true,
 });
 
-async function convertPDFToImages(pdfData: ArrayBuffer): Promise<string[]> {
-  console.log("Starting PDF to images conversion");
-  const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: pdfData }).promise;
-  const images: string[] = [];
-  console.log(`PDF loaded with ${pdf.numPages} pages`);
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    console.log(`Processing page ${i}`);
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    await page.render({ canvasContext: context!, viewport: viewport }).promise;
-    const imageDataUrl = canvas.toDataURL('image/png');
-    images.push(imageDataUrl);
-    console.log(`Page ${i} converted to image`);
-  }
-
-  console.log("PDF to images conversion completed");
-  return images;
-}
-
-export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
+export const filesToJsonOpenAI = async (files: any[]): Promise<string> => {
   console.log("Starting files to JSON conversion with OpenAI");
   let documents = "";
   const messages: any[] = [
@@ -46,50 +17,36 @@ export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
     ] },
   ];
 
-  const readFileAsDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        console.log(`File ${file.name} read as data URL`);
-        resolve(reader.result as string);
-      };
-      reader.onerror = (error) => {
-        console.error(`Error reading file ${file.name}:`, error);
-        reject(error);
-      };
-      reader.readAsDataURL(file);
-    });
+  const convertToDataURL = (file: string, type: string): string => {
+    return `data:${type};base64,${file}`;
   };
 
   for (const file of files) {
-    console.log(`Processing file: ${file.name}`);
-    let imageDataUrls: string[];
+    console.log(`Processing file:`, file);
+    let imageDataUrl: string;
 
     if (file.type === 'application/pdf') {
-      console.log(`File ${file.name} is a PDF`);
-      const pdfData = await file.arrayBuffer();
-      imageDataUrls = await convertPDFToImages(pdfData);
+      console.log(`File is a PDF`);
+      imageDataUrl = convertToDataURL(file.file, file.type);
     } else if (file.type.startsWith('image/')) {
-      console.log(`File ${file.name} is an image`);
-      imageDataUrls = [await readFileAsDataURL(file)];
+      console.log(`File is an image`);
+      imageDataUrl = convertToDataURL(file.file, file.type);
     } else {
       console.warn(`Unsupported file type: ${file.type}`);
       continue;
     }
 
-    for (const dataUrl of imageDataUrls) {
-      messages[1].content.push({
-        type: "image_url",
-        image_url: { url: dataUrl },
-      });
-      console.log(`Added image data URL to messages for file: ${file.name}`);
-    }
+    messages[1].content.push({
+      type: "image_url",
+      image_url: { url: imageDataUrl },
+    });
+    console.log(`Added image data URL to messages for file`);
   }
 
   try {
     console.log("Sending request to OpenAI API");
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-vision-preview",
       messages: messages,
       max_tokens: 4096,
     });
