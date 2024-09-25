@@ -13,7 +13,7 @@ export const filesToJson = async (files: any[]) => {
     : "";
   console.log("googleApiKey", googleApiKey);
   const genAI = new GoogleGenerativeAI(googleApiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", maxTokens: 10000 });
 
   let input: any[] = [promptToConvertImagesToJson];
   for (let i = 0; i < files.length; i++) {
