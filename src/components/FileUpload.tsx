@@ -8,6 +8,7 @@ import styled from 'styled-components';
 import { AlertContext } from '../utils/context/AlertContext';
 import { uploadFiles } from '../services/FileService';
 import { filesToJson } from '../services/P360';
+import { filesToJsonOpenAI } from '../services/P360';
 
 const HiddenInput = styled.input`
   display: none;
@@ -68,7 +69,7 @@ const FileUpload: React.FC<FileUploadType> = ({ setFiles, setLoading }) => {
         batch.push(filesUploaded[index]);
       
         if (batch.length === filesPerBatch || index === filesUploaded.length - 1) {
-          const response = await filesToJson(batch);
+          const response = await filesToJsonOpenAI(batch);
           allDocumentsJson.push(response);
           batch = [];
         }
