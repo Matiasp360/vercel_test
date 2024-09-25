@@ -1,11 +1,46 @@
 import OpenAI from "openai";
 import { promptToConvertImagesToJson } from "../utils/utils";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocumentProxy } from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const openai = new OpenAI({
   apiKey: process.env.REACT_APP_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true,
 });
+
+async function convertPDFToImages(pdfData: string): Promise<string[]> {
+  console.log("Starting PDF to images conversion");
+  const pdfBytes = atob(pdfData);
+  const pdfArray = new Uint8Array(pdfBytes.length);
+  for (let i = 0; i < pdfBytes.length; i++) {
+    pdfArray[i] = pdfBytes.charCodeAt(i);
+  }
+  
+  const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: pdfArray }).promise;
+  const images: string[] = [];
+  console.log(`PDF loaded with ${pdf.numPages} pages`);
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    console.log(`Processing page ${i}`);
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({ canvasContext: context!, viewport: viewport }).promise;
+    const imageDataUrl = canvas.toDataURL('image/png');
+    images.push(imageDataUrl);
+    console.log(`Page ${i} converted to image`);
+  }
+
+  console.log("PDF to images conversion completed");
+  return images;
+}
 
 export const filesToJsonOpenAI = async (files: any[]): Promise<string> => {
   console.log("Starting files to JSON conversion with OpenAI");
@@ -17,30 +52,28 @@ export const filesToJsonOpenAI = async (files: any[]): Promise<string> => {
     ] },
   ];
 
-  const convertToDataURL = (file: string, type: string): string => {
-    return `data:${type};base64,${file}`;
-  };
-
   for (const file of files) {
     console.log(`Processing file:`, file);
-    let imageDataUrl: string;
+    let imageDataUrls: string[];
 
     if (file.type === 'application/pdf') {
       console.log(`File is a PDF`);
-      imageDataUrl = convertToDataURL(file.file, file.type);
+      imageDataUrls = await convertPDFToImages(file.file);
     } else if (file.type.startsWith('image/')) {
       console.log(`File is an image`);
-      imageDataUrl = convertToDataURL(file.file, file.type);
+      imageDataUrls = [`data:${file.type};base64,${file.file}`];
     } else {
       console.warn(`Unsupported file type: ${file.type}`);
       continue;
     }
 
-    messages[1].content.push({
-      type: "image_url",
-      image_url: { url: imageDataUrl },
-    });
-    console.log(`Added image data URL to messages for file`);
+    for (const dataUrl of imageDataUrls) {
+      messages[1].content.push({
+        type: "image_url",
+        image_url: { url: dataUrl },
+      });
+    }
+    console.log(`Added image data URL(s) to messages for file`);
   }
 
   try {
