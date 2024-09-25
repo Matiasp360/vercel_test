@@ -1,0 +1,14 @@
+body {
+  font-size: 2.5vh;
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  background: linear-gradient(135deg, #204e5b, #e0f4f4);
+}
+
+h3 {
+  font-size: 3vh;
+  color: #24313D;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  margin: 0;
+}
