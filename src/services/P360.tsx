@@ -39,14 +39,23 @@ export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
     ] },
   ];
 
+  const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   for (const file of files) {
-    const fileData = await file.arrayBuffer();
     let imageDataUrls: string[];
 
     if (file.type === 'application/pdf') {
-      imageDataUrls = await convertPDFToImages(fileData);
+      const pdfData = await file.arrayBuffer();
+      imageDataUrls = await convertPDFToImages(pdfData);
     } else if (file.type.startsWith('image/')) {
-      imageDataUrls = [`data:${file.type};base64,${btoa(String.fromCharCode(...new Uint8Array(fileData)))}`];
+      imageDataUrls = [await readFileAsDataURL(file)];
     } else {
       console.warn(`Unsupported file type: ${file.type}`);
       continue;
