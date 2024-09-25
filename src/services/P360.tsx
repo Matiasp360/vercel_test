@@ -12,10 +12,13 @@ const openai = new OpenAI({
 });
 
 async function convertPDFToImages(pdfData: ArrayBuffer): Promise<string[]> {
+  console.log("Starting PDF to images conversion");
   const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: pdfData }).promise;
   const images: string[] = [];
+  console.log(`PDF loaded with ${pdf.numPages} pages`);
 
   for (let i = 1; i <= pdf.numPages; i++) {
+    console.log(`Processing page ${i}`);
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement('canvas');
@@ -24,13 +27,17 @@ async function convertPDFToImages(pdfData: ArrayBuffer): Promise<string[]> {
     canvas.width = viewport.width;
 
     await page.render({ canvasContext: context!, viewport: viewport }).promise;
-    images.push(canvas.toDataURL('image/png'));
+    const imageDataUrl = canvas.toDataURL('image/png');
+    images.push(imageDataUrl);
+    console.log(`Page ${i} converted to image`);
   }
 
+  console.log("PDF to images conversion completed");
   return images;
 }
 
 export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
+  console.log("Starting files to JSON conversion with OpenAI");
   let documents = "";
   const messages: any[] = [
     { role: "system", content: promptToConvertImagesToJson },
@@ -42,19 +49,28 @@ export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
   const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onload = () => {
+        console.log(`File ${file.name} read as data URL`);
+        resolve(reader.result as string);
+      };
+      reader.onerror = (error) => {
+        console.error(`Error reading file ${file.name}:`, error);
+        reject(error);
+      };
       reader.readAsDataURL(file);
     });
   };
 
   for (const file of files) {
+    console.log(`Processing file: ${file.name}`);
     let imageDataUrls: string[];
 
     if (file.type === 'application/pdf') {
+      console.log(`File ${file.name} is a PDF`);
       const pdfData = await file.arrayBuffer();
       imageDataUrls = await convertPDFToImages(pdfData);
     } else if (file.type.startsWith('image/')) {
+      console.log(`File ${file.name} is an image`);
       imageDataUrls = [await readFileAsDataURL(file)];
     } else {
       console.warn(`Unsupported file type: ${file.type}`);
@@ -66,10 +82,12 @@ export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
         type: "image_url",
         image_url: { url: dataUrl },
       });
+      console.log(`Added image data URL to messages for file: ${file.name}`);
     }
   }
 
   try {
+    console.log("Sending request to OpenAI API");
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: messages,
@@ -84,6 +102,7 @@ export const filesToJsonOpenAI = async (files: File[]): Promise<string> => {
     console.error("Error processing files with OpenAI Vision API:", error);
   }
 
+  console.log("Files to JSON conversion with OpenAI completed");
   return documents;
 };
 
