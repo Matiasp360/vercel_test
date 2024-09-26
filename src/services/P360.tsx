@@ -2,9 +2,9 @@ import OpenAI from "openai";
 import { promptToConvertImagesToJson } from "../utils/utils";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocumentProxy } from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const openai = new OpenAI({
   apiKey: process.env.REACT_APP_OPENAI_API_KEY,
@@ -19,20 +19,20 @@ async function convertPDFToImages(pdfData: string): Promise<string[]> {
     pdfArray[i] = pdfBytes.charCodeAt(i);
   }
   
-  const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: pdfArray }).promise;
+  const pdf = await pdfjsLib.getDocument({data: pdfArray}).promise;
   const images: string[] = [];
   console.log(`PDF loaded with ${pdf.numPages} pages`);
 
   for (let i = 1; i <= pdf.numPages; i++) {
     console.log(`Processing page ${i}`);
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({scale: 1.5});
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.height = viewport.height;
     canvas.width = viewport.width;
 
-    await page.render({ canvasContext: context!, viewport: viewport }).promise;
+    await page.render({canvasContext: context!, viewport: viewport}).promise;
     const imageDataUrl = canvas.toDataURL('image/png');
     images.push(imageDataUrl);
     console.log(`Page ${i} converted to image`);
@@ -79,7 +79,7 @@ export const filesToJsonOpenAI = async (files: any[]): Promise<string> => {
   try {
     console.log("Sending request to OpenAI API");
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-vision-preview",
       messages: messages,
       max_tokens: 4096,
     });
